@@ -3,9 +3,12 @@ add kernelsu > kernel non GKI
 
 # How?
 ```
+wget https://raw.githubusercontent.com/Frostleaft07/KernelSU-Patch/main/KSU.patch
+```
+and
+```
 patch -p1 < KSU.patch
-
-````
+```
 then 
 ```
 rm -rf KernelSU
