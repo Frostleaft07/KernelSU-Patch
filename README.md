@@ -1,3 +1,5 @@
+## patch | [cherry-pick](https://github.com/Frostleaft07/KernelSU-Patch/blob/main/cherry.md) ##
+
 # KernelSU-Patch
 add kernelsu > kernel non GKI
 
