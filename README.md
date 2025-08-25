@@ -1,25 +1,18 @@
-## patch | [cherry-pick](https://github.com/Frostleaft07/KernelSU-Patch/blob/main/cherry.md) | [conflict](https://github.com/Frostleaft07/KernelSU-Patch/blob/main/conflict.md) ##
+# KernelSU-Patch for Kernel v4.19.x
 
-# KernelSU-Patch
-add kernelsu > kernel non GKI
+# gimana?
 
-# How?
+contoh
 ```
-wget https://raw.githubusercontent.com/Frostleaft07/KernelSU-Patch/main/KSU.patch
+wget https://raw.githubusercontent.com/Frostleaft07/KernelSU-Patch/refs/heads/main/hooks-k4.19/official_hook_4.19.patch
 ```
 and
 ```
-patch -p1 < KSU.patch
-```
-then 
-```
-rm -rf KernelSU
+patch -p1 < nama.patch
 ```
 and add KernelSU to your kernel source tree:
 ```
-curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
+curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
 ```
-Done :)
-
-![ex](https://raw.githubusercontent.com/Frostleaft07/KernelSU-Patch/main/Cuplikan%20Layar_2024-02-06_11-00-48.png "ex")
+Done :) & build 
 
