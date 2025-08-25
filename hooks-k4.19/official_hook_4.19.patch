@@ -1,0 +1,273 @@
+From cb5308602751fe2f017adb8348f12cfd61039270 Mon Sep 17 00:00:00 2001
+From: Frostleaft07 <90104112+Frostleaft07@users.noreply.github.com>
+Date: Tue, 29 Jul 2025 05:22:08 +0700
+Subject: [PATCH 1/4] fs: devpts: Fix Failed to execute pm in terminal
+
+Signed-off-by: Frostleaft07 <90104112+Frostleaft07@users.noreply.github.com>
+---
+ fs/devpts/inode.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/fs/devpts/inode.c b/fs/devpts/inode.c
+index 553a3f3300ae..bd7f3d82fb07 100644
+--- a/fs/devpts/inode.c
++++ b/fs/devpts/inode.c
+@@ -599,6 +599,10 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
+ 	return dentry;
+ }
+ 
++#ifdef CONFIG_KSU
++extern int ksu_handle_devpts(struct inode*);
++#endif
++
+ /**
+  * devpts_get_priv -- get private data for a slave
+  * @pts_inode: inode of the slave
+@@ -607,6 +611,9 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
+  */
+ void *devpts_get_priv(struct dentry *dentry)
+ {
++    #ifdef CONFIG_KSU
++    ksu_handle_devpts(dentry->d_inode);
++    #endif
+ 	if (dentry->d_sb->s_magic != DEVPTS_SUPER_MAGIC)
+ 		return NULL;
+ 	return dentry->d_fsdata;
+-- 
+2.47.2
+
+
+From 5a7a7e21b6b3f1adca9cf855553e3e5c31121b41 Mon Sep 17 00:00:00 2001
+From: Frostleaft07 <90104112+Frostleaft07@users.noreply.github.com>
+Date: Tue, 29 Jul 2025 05:15:09 +0700
+Subject: [PATCH 2/4] KernelSU: integrate official manual hooks
+
+Signed-off-by: Frostleaft07 <90104112+Frostleaft07@users.noreply.github.com>
+---
+ drivers/input/input.c | 10 ++++++++++
+ fs/exec.c             | 14 +++++++++++++-
+ fs/open.c             |  8 +++++++-
+ fs/read_write.c       |  9 +++++++++
+ fs/stat.c             |  9 +++++++--
+ 5 files changed, 46 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/input/input.c b/drivers/input/input.c
+index 32d5d6e208ef..8b673782119b 100755
+--- a/drivers/input/input.c
++++ b/drivers/input/input.c
+@@ -370,6 +370,11 @@ static int input_get_disposition(struct input_dev *dev,
+ extern void __attribute__((weak)) oppo_sync_saupwk_event(unsigned int , unsigned int , int);
+ #endif /* VENDOR_EDIT */
+ 
++#ifdef CONFIG_KSU
++extern bool ksu_input_hook __read_mostly;
++extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);
++#endif
++
+ static void input_handle_event(struct input_dev *dev,
+ 			       unsigned int type, unsigned int code, int value)
+ {
+@@ -380,6 +385,11 @@ static void input_handle_event(struct input_dev *dev,
+                     oppo_sync_saupwk_event(type, code, value);
+ #endif /* VENDOR_EDIT */
+ 
++#ifdef CONFIG_KSU
++	if (unlikely(ksu_input_hook))
++		ksu_handle_input_handle_event(&type, &code, &value);
++#endif
++
+ 	if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
+ 		add_input_randomness(type, code, value);
+ 
+diff --git a/fs/exec.c b/fs/exec.c
+index b6971f244196..1f8b3a0c3589 100755
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1867,12 +1867,24 @@ static int __do_execve_file(int fd, struct filename *filename,
+ 		putname(filename);
+ 	return retval;
+ }
+-
++#ifdef CONFIG_KSU
++extern bool ksu_execveat_hook __read_mostly;
++extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
++			void *envp, int *flags);
++extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
++				 void *argv, void *envp, int *flags);
++#endif
+ static int do_execveat_common(int fd, struct filename *filename,
+ 			      struct user_arg_ptr argv,
+ 			      struct user_arg_ptr envp,
+ 			      int flags)
+ {
++    #ifdef CONFIG_KSU
++	if (unlikely(ksu_execveat_hook))
++		ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
++	else
++		ksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);
++    #endif
+ 	return __do_execve_file(fd, filename, argv, envp, flags, NULL);
+ }
+ 
+diff --git a/fs/open.c b/fs/open.c
+index b14aef04ee01..aad2e1ab4f21 100644
+--- a/fs/open.c
++++ b/fs/open.c
+@@ -347,7 +347,10 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
+ {
+ 	return ksys_fallocate(fd, mode, offset, len);
+ }
+-
++#ifdef CONFIG_KSU
++extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
++			 int *flags);
++#endif
+ /*
+  * access() needs to use the real uid/gid, not the effective uid/gid.
+  * We do this by temporarily clearing all FS-related capabilities and
+@@ -362,6 +365,9 @@ long do_faccessat(int dfd, const char __user *filename, int mode)
+ 	struct vfsmount *mnt;
+ 	int res;
+ 	unsigned int lookup_flags = LOOKUP_FOLLOW;
++    #ifdef CONFIG_KSU
++	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
++    #endif
+ 
+ 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
+ 		return -EINVAL;
+diff --git a/fs/read_write.c b/fs/read_write.c
+index 16e58d3f9284..c7f0866332b2 100755
+--- a/fs/read_write.c
++++ b/fs/read_write.c
+@@ -443,9 +443,18 @@ ssize_t kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
+ }
+ EXPORT_SYMBOL(kernel_read);
+ 
++#ifdef CONFIG_KSU
++extern bool ksu_vfs_read_hook __read_mostly;
++extern int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
++			size_t *count_ptr, loff_t **pos);
++#endif
+ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
+ {
+ 	ssize_t ret;
++    #ifdef CONFIG_KSU 
++	if (unlikely(ksu_vfs_read_hook))
++		ksu_handle_vfs_read(&file, &buf, &count, &pos);
++    #endif
+ 
+ 	if (!(file->f_mode & FMODE_READ))
+ 		return -EBADF;
+diff --git a/fs/stat.c b/fs/stat.c
+index f8e6fb2c3657..363d46593ef2 100644
+--- a/fs/stat.c
++++ b/fs/stat.c
+@@ -147,7 +147,9 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
+ 	return error;
+ }
+ EXPORT_SYMBOL(vfs_statx_fd);
+-
++#ifdef CONFIG_KSU
++extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
++#endif
+ /**
+  * vfs_statx - Get basic and extra attributes by filename
+  * @dfd: A file descriptor representing the base dir for a relative filename
+@@ -169,7 +171,10 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
+ 	struct path path;
+ 	int error = -EINVAL;
+ 	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
+-
++	
++    #ifdef CONFIG_KSU
++	ksu_handle_stat(&dfd, &filename, &flags);
++    #endif
+ 	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
+ 		       AT_EMPTY_PATH | KSTAT_QUERY_FLAGS)) != 0)
+ 		return -EINVAL;
+-- 
+2.47.2
+
+
+From 0951fea623940373de2d36f5799b775d080997af Mon Sep 17 00:00:00 2001
+From: Frostleaft07 <90104112+Frostleaft07@users.noreply.github.com>
+Date: Tue, 29 Jul 2025 05:27:26 +0700
+Subject: [PATCH 3/4] fs: namespace: backporting path_umount from 5.9
+
+Signed-off-by: Frostleaft07 <90104112+Frostleaft07@users.noreply.github.com>
+---
+ fs/namespace.c | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)
+
+diff --git a/fs/namespace.c b/fs/namespace.c
+index 4c0c6a8db1a2..1c846faadfa6 100755
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -1644,6 +1644,39 @@ static inline bool may_mandlock(void)
+ 	return capable(CAP_SYS_ADMIN);
+ }
+ 
++static int can_umount(const struct path *path, int flags)
++{
++	struct mount *mnt = real_mount(path->mnt);
++
++	if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))
++		return -EINVAL;
++	if (!may_mount())
++		return -EPERM;
++	if (path->dentry != path->mnt->mnt_root)
++		return -EINVAL;
++	if (!check_mnt(mnt))
++		return -EINVAL;
++	if (mnt->mnt.mnt_flags & MNT_LOCKED) /* Check optimistically */
++		return -EINVAL;
++	if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))
++		return -EPERM;
++	return 0;
++}
++
++int path_umount(struct path *path, int flags)
++{
++	struct mount *mnt = real_mount(path->mnt);
++	int ret;
++
++	ret = can_umount(path, flags);
++	if (!ret)
++		ret = do_umount(mnt, flags);
++
++	/* we mustn't call path_put() as that would clear mnt_expiry_mark */
++	dput(path->dentry);
++	mntput_no_expire(mnt);
++	return ret;
++}
+ /*
+  * Now umount can handle mount points as well as block devices.
+  * This is important for filesystems which use unnamed block devices.
+-- 
+2.47.2
+
+
+From 636eb4614a55df6796cbfceeccbf74d2c67aaa98 Mon Sep 17 00:00:00 2001
+From: Frost leaf <zx7unknow@gmail.com>
+Date: Thu, 31 Jul 2025 02:58:48 +0000
+Subject: [PATCH 4/4] fs: Add path_umount declaration
+
+---
+ fs/internal.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/fs/internal.h b/fs/internal.h
+index 8d0ca52e2690..4636887f4fec 100644
+--- a/fs/internal.h
++++ b/fs/internal.h
+@@ -77,6 +77,7 @@ extern int finish_automount(struct vfsmount *, struct path *);
+ extern int sb_prepare_remount_readonly(struct super_block *);
+ 
+ extern void __init mnt_init(void);
++int path_umount(struct path *path, int flags);
+ 
+ extern int __mnt_want_write_file(struct file *);
+ extern void __mnt_drop_write_file(struct file *);
+-- 
+2.47.2
+
