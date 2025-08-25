@@ -1,0 +1,149 @@
+From 87fcb3dd6269bfbd1829fec0cee011f2ad74ce77 Mon Sep 17 00:00:00 2001
+From: Frostleaft07 <90104112+Frostleaft07@users.noreply.github.com>
+Date: Mon, 18 Aug 2025 15:21:53 +0700
+Subject: [PATCH] kernelsu: set ifdef ke if defined xxxx
+
+---
+ drivers/input/input.c | 4 ++--
+ fs/devpts/inode.c     | 4 ++--
+ fs/exec.c             | 4 ++--
+ fs/open.c             | 4 ++--
+ fs/read_write.c       | 4 ++--
+ fs/stat.c             | 4 ++--
+ 6 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/input/input.c b/drivers/input/input.c
+index 4602fc689db4..141a7185d976 100755
+--- a/drivers/input/input.c
++++ b/drivers/input/input.c
+@@ -385,7 +385,7 @@ static int input_get_disposition(struct input_dev *dev,
+ extern void __attribute__((weak)) oppo_sync_saupwk_event(unsigned int , unsigned int , int);
+ #endif /* VENDOR_EDIT */
+ 
+-#ifdef CONFIG_KSU
++#if defined(CONFIG_KSU) && defined(CONFIG_KSU_MANUAL_HOOK)
+ extern bool ksu_input_hook __read_mostly;
+ extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);
+ #endif
+@@ -400,7 +400,7 @@ static void input_handle_event(struct input_dev *dev,
+                     oppo_sync_saupwk_event(type, code, value);
+ #endif /* VENDOR_EDIT */
+ 
+-#ifdef CONFIG_KSU
++#if defined(CONFIG_KSU) && defined(CONFIG_KSU_MANUAL_HOOK)
+ 	if (unlikely(ksu_input_hook))
+ 		ksu_handle_input_handle_event(&type, &code, &value);
+ #endif
+diff --git a/fs/devpts/inode.c b/fs/devpts/inode.c
+index bd7f3d82fb07..21e4d87ac921 100644
+--- a/fs/devpts/inode.c
++++ b/fs/devpts/inode.c
+@@ -599,7 +599,7 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
+ 	return dentry;
+ }
+ 
+-#ifdef CONFIG_KSU
++#if defined(CONFIG_KSU) && defined(CONFIG_KSU_MANUAL_HOOK)
+ extern int ksu_handle_devpts(struct inode*);
+ #endif
+ 
+@@ -611,7 +611,7 @@ extern int ksu_handle_devpts(struct inode*);
+  */
+ void *devpts_get_priv(struct dentry *dentry)
+ {
+-    #ifdef CONFIG_KSU
++    #if defined(CONFIG_KSU) && defined(CONFIG_KSU_MANUAL_HOOK)
+     ksu_handle_devpts(dentry->d_inode);
+     #endif
+ 	if (dentry->d_sb->s_magic != DEVPTS_SUPER_MAGIC)
+diff --git a/fs/exec.c b/fs/exec.c
+index 54f3ac934259..b47d1440a1fc 100755
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1908,7 +1908,7 @@ static int __do_execve_file(int fd, struct filename *filename,
+ 		putname(filename);
+ 	return retval;
+ }
+-#ifdef CONFIG_KSU
++#if defined(CONFIG_KSU) && defined(CONFIG_KSU_MANUAL_HOOK)
+ extern bool ksu_execveat_hook __read_mostly;
+ extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
+ 			void *envp, int *flags);
+@@ -1920,7 +1920,7 @@ static int do_execveat_common(int fd, struct filename *filename,
+ 			      struct user_arg_ptr envp,
+ 			      int flags)
+ {
+-    #ifdef CONFIG_KSU
++    #if defined(CONFIG_KSU) && defined(CONFIG_KSU_MANUAL_HOOK)
+ 	if (unlikely(ksu_execveat_hook))
+ 		ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
+ 	else
+diff --git a/fs/open.c b/fs/open.c
+index 968bc686b715..7c45ad84a622 100644
+--- a/fs/open.c
++++ b/fs/open.c
+@@ -351,7 +351,7 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
+ {
+ 	return ksys_fallocate(fd, mode, offset, len);
+ }
+-#ifdef CONFIG_KSU
++#if defined(CONFIG_KSU) && defined(CONFIG_KSU_MANUAL_HOOK)
+ extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
+ 			 int *flags);
+ #endif
+@@ -369,7 +369,7 @@ long do_faccessat(int dfd, const char __user *filename, int mode)
+ 	struct vfsmount *mnt;
+ 	int res;
+ 	unsigned int lookup_flags = LOOKUP_FOLLOW;
+-    #ifdef CONFIG_KSU
++    #if defined(CONFIG_KSU) && defined(CONFIG_KSU_MANUAL_HOOK)
+ 	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
+     #endif
+ 
+diff --git a/fs/read_write.c b/fs/read_write.c
+index ba586e94a28c..58751a7e6353 100755
+--- a/fs/read_write.c
++++ b/fs/read_write.c
+@@ -447,7 +447,7 @@ ssize_t kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
+ }
+ EXPORT_SYMBOL(kernel_read);
+ 
+-#ifdef CONFIG_KSU
++#if defined(CONFIG_KSU) && defined(CONFIG_KSU_MANUAL_HOOK)
+ extern bool ksu_vfs_read_hook __read_mostly;
+ extern int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
+ 			size_t *count_ptr, loff_t **pos);
+@@ -455,7 +455,7 @@ extern int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
+ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
+ {
+ 	ssize_t ret;
+-    #ifdef CONFIG_KSU 
++    #if defined(CONFIG_KSU) && defined(CONFIG_KSU_MANUAL_HOOK)
+ 	if (unlikely(ksu_vfs_read_hook))
+ 		ksu_handle_vfs_read(&file, &buf, &count, &pos);
+     #endif
+diff --git a/fs/stat.c b/fs/stat.c
+index 671b87d0705d..3c59f872c0be 100644
+--- a/fs/stat.c
++++ b/fs/stat.c
+@@ -148,7 +148,7 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
+ 	return error;
+ }
+ EXPORT_SYMBOL(vfs_statx_fd);
+-#ifdef CONFIG_KSU
++#if defined(CONFIG_KSU) && defined(CONFIG_KSU_MANUAL_HOOK)
+ extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
+ #endif
+ /**
+@@ -173,7 +173,7 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
+ 	int error = -EINVAL;
+ 	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
+ 	
+-    #ifdef CONFIG_KSU
++    #if defined(CONFIG_KSU) && defined(CONFIG_KSU_MANUAL_HOOK)
+ 	ksu_handle_stat(&dfd, &filename, &flags);
+     #endif
+ 	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
+-- 
+2.47.2
+
