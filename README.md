@@ -1,4 +1,4 @@
-# KernelSU-Patch for Kernel v4.19.x
+# KernelSU-Patch & SUSFS for Kernel v4.19.x
 
 # gimana?
 
