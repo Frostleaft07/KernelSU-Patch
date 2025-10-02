@@ -1,0 +1,36 @@
+From 52218322734b680f16bc3f438b06cfcd9eb04981 Mon Sep 17 00:00:00 2001
+From: "M. Faris" <90097027+rsuntk@users.noreply.github.com>
+Date: Sun, 17 Aug 2025 21:37:46 +0700
+Subject: [PATCH] FIXUP!: KernelSU: SusFS: Fix kernel panic on avc spoof
+
+Reorder rc to the top as original patches do.
+
+Panic Cause: kfree was called on non-existing object (scontext)
+---
+ security/selinux/avc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/security/selinux/avc.c b/security/selinux/avc.c
+index 5e73202c0eb9..95f6dafb3bae 100755
+--- a/security/selinux/avc.c
++++ b/security/selinux/avc.c
+@@ -196,6 +196,8 @@ static void avc_dump_query(struct audit_buffer *ab, struct selinux_state *state,
+ 		kfree(scontext);
+ 	}
+ 
++    rc = security_sid_to_context(state, tsid, &scontext, &scontext_len);
++
+ #ifdef CONFIG_KSU_SUSFS
+ 	if (unlikely(tsid == susfs_ksu_sid &&
+ 		susfs_is_avc_log_spoofing_enabled)) {
+@@ -209,7 +211,6 @@ static void avc_dump_query(struct audit_buffer *ab, struct selinux_state *state,
+ 	}
+ #endif
+ 
+-	rc = security_sid_to_context(state, tsid, &scontext, &scontext_len);
+ 	if (rc)
+ 		audit_log_format(ab, " tsid=%d", tsid);
+ 	else {
+-- 
+2.50.1
+
