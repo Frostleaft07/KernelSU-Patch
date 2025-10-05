@@ -1,8 +1,5 @@
 # KernelSU-Patch & SUSFS for Kernel v4.19.x
 
-# gimana?
-
-contoh
 ```
 wget https://raw.githubusercontent.com/Frostleaft07/KernelSU-Patch/refs/heads/main/hooks-k4.19/official_hook_4.19.patch
 ```
